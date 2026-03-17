@@ -4,6 +4,7 @@ import { Alert, Button, Spin, Tabs, Tag } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import axiosRequest from "../../plugins/request";
 import { createChildRequest } from "../../plugins/childRequest";
+import cookiesStore from "../../plugins/cookiesStore";
 import { IChildApp } from "../../types/childApp";
 import InfoTab from "./tabs/InfoTab";
 import BankSetting from "./tabs/BankSetting";
@@ -40,15 +41,13 @@ export default function AppDetailPage() {
           return;
         }
 
-        const credRs = await axiosRequest.get(`/v1/child-apps/${id}/credentials`);
-        const { appDomain, accessToken } = credRs.data.data;
-
+        const accessToken = cookiesStore.get("access_token");
         if (!accessToken) {
-          setError("Chưa có access token. Hãy kiểm tra lại trạng thái kết nối.");
+          setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
           return;
         }
 
-        setChildRequest(() => createChildRequest(appDomain, accessToken));
+        setChildRequest(() => createChildRequest(appData.appDomain, appData.port, accessToken));
       } catch {
         setError("Không thể tải thông tin app.");
       } finally {
@@ -117,7 +116,6 @@ export default function AppDetailPage() {
 
   return (
     <div className="w-full">
-      {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button
@@ -133,7 +131,6 @@ export default function AppDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         {!childRequest && app.appStatus !== "online" && (
           <Alert

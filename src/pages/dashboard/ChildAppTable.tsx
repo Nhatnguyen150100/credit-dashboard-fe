@@ -4,6 +4,7 @@ import {
   Empty,
   Form,
   Input,
+  InputNumber,
   Modal,
   notification,
   Spin,
@@ -19,7 +20,7 @@ import {
   PlusOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axiosRequest from "../../plugins/request";
 import { IChildApp } from "../../types/childApp";
 import { formatDate } from "../../utils/day-format";
@@ -44,6 +45,24 @@ export default function ChildAppTable() {
 
   const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
   const [checkingAll, setCheckingAll] = React.useState(false);
+  const [appMeta, setAppMeta] = React.useState<Record<string, { iconUrl: string | null; title: string | null }>>({});
+  const [fetchingMeta, setFetchingMeta] = React.useState(false);
+
+  const fetchAllMeta = async (apps: IChildApp[]) => {
+    if (apps.length === 0) return;
+    const results = await Promise.allSettled(
+      apps.map((app) => axiosRequest.get(`/v1/child-apps/${app._id}/meta`))
+    );
+    setAppMeta((prev) => {
+      const next = { ...prev };
+      results.forEach((result, i) => {
+        next[apps[i]._id] = result.status === "fulfilled"
+          ? result.value.data.data
+          : { iconUrl: null, title: null };
+      });
+      return next;
+    });
+  };
 
   const checkAllStatuses = async (apps: IChildApp[]) => {
     if (apps.length === 0) return;
@@ -74,6 +93,7 @@ export default function ChildAppTable() {
       const apps: IChildApp[] = rs.data.data;
       setList(apps);
       setTotal(rs.data.totalItems);
+      fetchAllMeta(apps);
       if (withStatusCheck) {
         checkAllStatuses(apps);
       }
@@ -91,7 +111,26 @@ export default function ChildAppTable() {
     isFirstLoad.current = false;
   }, [page]);
 
-  const handleConnect = async (values: { appName: string; appDomain: string }) => {
+  const handleDomainBlur = async () => {
+    let domain = connectForm.getFieldValue("appDomain")?.trim();
+    if (!domain) return;
+
+    domain = domain.replace(/^https?:\/\//i, "").split("/")[0];
+    connectForm.setFieldsValue({ appDomain: domain });
+
+    try {
+      setFetchingMeta(true);
+      const rs = await axiosRequest.get("/v1/child-apps/fetch-meta", { params: { domain } });
+      const { title } = rs.data.data;
+      if (title && !connectForm.getFieldValue("appName")) {
+        connectForm.setFieldsValue({ appName: title });
+      }
+    } finally {
+      setFetchingMeta(false);
+    }
+  };
+
+  const handleConnect = async (values: { appName: string; appDomain: string; port: number }) => {
     try {
       setConnectLoading(true);
       const rs = await axiosRequest.post("/v1/child-apps/connect", values);
@@ -136,7 +175,7 @@ export default function ChildAppTable() {
   const handleDelete = (record: IChildApp) => {
     Modal.confirm({
       title: "Xóa child app?",
-      content: `App: ${record.appName} (${record.appDomain})`,
+      content: `App: ${record.appName} (${record.appDomain}:${record.port})`,
       okText: "Xóa",
       okType: "danger",
       cancelText: "Hủy",
@@ -183,17 +222,42 @@ export default function ChildAppTable() {
       width: 60,
     },
     {
-      title: "Tên App",
+      title: "Icon",
+      key: "icon",
+      width: 150,
+      align: "center",
+      render: (_, record) => {
+        const meta = appMeta[record._id];
+        if (!meta) return <Spin size="small" />;
+        return meta.iconUrl ? (
+          <img
+            src={meta.iconUrl}
+            alt="icon"
+            className="w-7 h-7 object-contain mx-auto rounded"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : null;
+      },
+    },
+    {
+      title: "Tên ứng dụng",
       dataIndex: "appName",
       key: "appName",
       render: (text) => <span className="font-semibold text-base">{text}</span>,
     },
     {
       title: "Domain (IP)",
-      dataIndex: "appDomain",
       key: "appDomain",
-      render: (text) => (
-        <span className="font-mono text-gray-700">{text}</span>
+      render: (_, record) => (
+        <Link
+          to={`http://${record.appDomain}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-mono text-blue-700 underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {record.appDomain}
+        </Link>
       ),
     },
     {
@@ -251,7 +315,6 @@ export default function ChildAppTable() {
 
   return (
     <>
-      {/* Header row */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
           <ApiOutlined />
@@ -260,13 +323,15 @@ export default function ChildAppTable() {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setConnectOpen(true)}
+          onClick={() => {
+            connectForm.resetFields();
+            setConnectOpen(true);
+          }}
         >
           Kết nối ứng dụng mới
         </Button>
       </div>
 
-      {/* Table */}
       <Visibility
         visibility={list.length > 0 || loading}
         suspenseComponent={<Empty description="Chưa có child app nào" />}
@@ -296,11 +361,10 @@ export default function ChildAppTable() {
         />
       </Visibility>
 
-      {/* Connect Modal */}
       <Modal
         title={
           <span className="flex items-center gap-2">
-            <ApiOutlined /> Kết nối Child App mới
+            <ApiOutlined /> Kết nối ứng dụng con mới
           </span>
         }
         open={connectOpen}
@@ -311,24 +375,34 @@ export default function ChildAppTable() {
         footer={null}
         centered
       >
-        <Form form={connectForm} layout="vertical" onFinish={handleConnect}>
-          <Form.Item
-            label="Tên App"
-            name="appName"
-            rules={[{ required: true, message: "Vui lòng nhập tên app" }]}
-          >
-            <Input placeholder="Ví dụ: credit-be-vn" />
-          </Form.Item>
+        <Form
+          form={connectForm}
+          layout="vertical"
+          onFinish={handleConnect}
+          initialValues={{ port: 8080 }}
+        >
           <Form.Item
             label="Domain (IPv4 của VPS)"
             name="appDomain"
             rules={[{ required: true, message: "Vui lòng nhập domain/IP" }]}
           >
-            <Input placeholder="Ví dụ: 103.72.xxx.xxx:8081" />
+            <Input placeholder="Ví dụ: 103.72.xxx.xxx" onBlur={handleDomainBlur} />
           </Form.Item>
-          <p className="text-gray-400 text-xs mb-4">
-            Hệ thống sẽ tự động đăng nhập bằng SUPERVISOR_USERNAME/PASSWORD cấu hình trên server.
-          </p>
+          <Form.Item
+            label="Tên ứng dụng"
+            name="appName"
+            rules={[{ required: true, message: "Vui lòng nhập tên app" }]}
+          >
+            <Input placeholder="Ví dụ: credit-be-vn" suffix={fetchingMeta ? <Spin size="small" /> : null} />
+          </Form.Item>
+          <Form.Item
+            label="Port"
+            name="port"
+            rules={[{ required: true, message: "Vui lòng nhập port" }]}
+            extra="Trường này đã được cấu hình sẵn, thông thường không cần thay đổi."
+          >
+            <InputNumber min={1} max={65535} className="w-full" />
+          </Form.Item>
           <div className="flex justify-end gap-2">
             <Button
               onClick={() => {
@@ -345,9 +419,8 @@ export default function ChildAppTable() {
         </Form>
       </Modal>
 
-      {/* Edit Modal */}
       <Modal
-        title="Đổi tên App"
+        title="Đổi tên ứng dụng"
         open={editOpen}
         onCancel={() => setEditOpen(false)}
         footer={null}
@@ -355,9 +428,9 @@ export default function ChildAppTable() {
       >
         <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
           <Form.Item
-            label="Tên App mới"
+            label="Tên ứng dụng mới"
             name="appName"
-            rules={[{ required: true, message: "Vui lòng nhập tên app" }]}
+            rules={[{ required: true, message: "Vui lòng nhập tên ứng dụng" }]}
           >
             <Input />
           </Form.Item>

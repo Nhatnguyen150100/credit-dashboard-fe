@@ -2,6 +2,7 @@ export interface IChildApp {
   _id: string;
   appName: string;
   appDomain: string;
+  port: number;
   appStatus: "online" | "offline";
   createdAt: string;
   updatedAt: string;
