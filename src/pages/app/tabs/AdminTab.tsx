@@ -193,7 +193,6 @@ export default function AdminTab({ childRequest }: Props) {
         />
       </div>
 
-      {/* Create modal */}
       <Modal
         title="Thêm tài khoản ADMIN"
         open={createOpen}
@@ -224,7 +223,6 @@ export default function AdminTab({ childRequest }: Props) {
         </Form>
       </Modal>
 
-      {/* Edit modal */}
       <Modal
         title={`Chỉnh sửa: ${editTarget?.userName}`}
         open={editOpen}

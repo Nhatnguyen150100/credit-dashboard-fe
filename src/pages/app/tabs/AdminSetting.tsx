@@ -170,7 +170,6 @@ function AdminList({ childRequest }: Props) {
           showSizeChanger={false} showTotal={(t) => `Tổng ${t}`} />
       </div>
 
-      {/* Create modal */}
       <Modal title="Thêm ADMIN mới" open={createOpen}
         onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
         footer={null} centered destroyOnClose>
@@ -190,7 +189,6 @@ function AdminList({ childRequest }: Props) {
         </Form>
       </Modal>
 
-      {/* Edit modal */}
       <Modal title={`Chỉnh sửa: ${editTarget?.userName}`} open={editOpen}
         onCancel={() => setEditOpen(false)} footer={null} centered destroyOnClose>
         <Form form={editForm} layout="vertical" onFinish={handleEdit}>
@@ -226,7 +224,6 @@ function AdminList({ childRequest }: Props) {
   );
 }
 
-// ── SYSTEM_ADMIN accounts ─────────────────────────────────────────────────────
 function SystemAdminList({ childRequest }: Props) {
   const [users, setUsers] = React.useState<IAdminUser[]>([]);
   const [total, setTotal] = React.useState(0);
@@ -347,8 +344,19 @@ function SystemAdminList({ childRequest }: Props) {
       </div>
       <Table columns={columns} dataSource={users} rowKey="_id" pagination={false} />
       <div className="mt-3 flex justify-end">
-        <Pagination current={page} total={total} pageSize={limit} onChange={setPage}
-          showSizeChanger={false} showTotal={(t) => `Tổng ${t}`} />
+        <Pagination
+          current={page}
+          total={total}
+          pageSize={limit}
+          onChange={setPage}
+          showSizeChanger
+          pageSizeOptions={[10, 20, 50, 100]}
+          onShowSizeChange={(_, size) => {
+            setLimit(size);
+            setPage(1);
+          }}
+          showTotal={(t) => `Tổng ${t}`}
+        />
       </div>
 
       <Modal title="Thêm SYSTEM_ADMIN" open={createOpen}
