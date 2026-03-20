@@ -379,7 +379,7 @@ export default function ChildAppTable() {
           form={connectForm}
           layout="vertical"
           onFinish={handleConnect}
-          initialValues={{ port: 8080 }}
+          initialValues={{ port: 8081 }}
         >
           <Form.Item
             label="Domain (IPv4 của VPS)"
