@@ -104,11 +104,12 @@ export default function ChildAppTable() {
     }
   };
 
-  const isFirstLoad = React.useRef(true);
+  const SESSION_KEY = "childApps_statusChecked";
 
   React.useEffect(() => {
-    fetchList(isFirstLoad.current);
-    isFirstLoad.current = false;
+    const shouldCheckStatus = !sessionStorage.getItem(SESSION_KEY);
+    if (shouldCheckStatus) sessionStorage.setItem(SESSION_KEY, "1");
+    fetchList(shouldCheckStatus);
   }, [page]);
 
   const handleDomainBlur = async () => {
@@ -384,7 +385,19 @@ export default function ChildAppTable() {
           <Form.Item
             label="Domain (IPv4 của VPS)"
             name="appDomain"
-            rules={[{ required: true, message: "Vui lòng nhập domain/IP" }]}
+            rules={[
+              { required: true, message: "Vui lòng nhập domain/IP" },
+              {
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve();
+                  const trimmed = value.trim().replace(/^https?:\/\//i, "").split("/")[0];
+                  const ipv4 = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+                  const domain = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+                  if (ipv4.test(trimmed) || domain.test(trimmed)) return Promise.resolve();
+                  return Promise.reject("Vui lòng nhập đúng định dạng domain hoặc địa chỉ IPv4");
+                },
+              },
+            ]}
           >
             <Input placeholder="Ví dụ: 103.72.xxx.xxx" onBlur={handleDomainBlur} />
           </Form.Item>
