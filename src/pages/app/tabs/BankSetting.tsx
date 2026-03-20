@@ -39,6 +39,16 @@ export default function BankSetting({ childRequest }: Props) {
     fetchBank();
   }, []);
 
+  React.useEffect(() => {
+    if (bank) {
+      form.setFieldsValue({
+        name_bank: bank.name_bank ?? "",
+        name_account: bank.name_account ?? "",
+        account_number: bank.account_number ?? "",
+      });
+    }
+  }, [bank]);
+
   const onFinish: FormProps<FieldType>["onFinish"] = async (values) => {
     if (!(file || qrCodeImg)) {
       message.error("Chưa chọn ảnh QR code");
