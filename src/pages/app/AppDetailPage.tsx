@@ -47,7 +47,7 @@ export default function AppDetailPage() {
           return;
         }
 
-        setChildRequest(() => createChildRequest(appData.appDomain, appData.port, accessToken));
+        setChildRequest(() => createChildRequest(appData.appDomain, appData.port, accessToken, appData.backendUrl));
       } catch {
         setError("Không thể tải thông tin app.");
       } finally {

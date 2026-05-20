@@ -1,8 +1,9 @@
 import axios from "axios";
 
-export const createChildRequest = (appDomain: string, port: number, accessToken: string) => {
+export const createChildRequest = (appDomain: string, port: number | undefined, accessToken: string, backendUrl?: string) => {
+  const baseURL = backendUrl ? backendUrl : `http://${appDomain}:${port}`;
   const instance = axios.create({
-    baseURL: `http://${appDomain}:${port}`,
+    baseURL,
     timeout: 10000,
   });
 

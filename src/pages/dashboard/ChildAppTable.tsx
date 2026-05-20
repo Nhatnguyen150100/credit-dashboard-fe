@@ -130,10 +130,21 @@ export default function ChildAppTable() {
     }
   };
 
-  const handleConnect = async (values: { appName: string; appDomain: string; port: number }) => {
+  const handleConnect = async (values: any) => {
     try {
       setConnectLoading(true);
-      const rs = await axiosRequest.post("/v1/child-apps/connect", values);
+      const domainVal = values.appDomain || "";
+      const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      const isIpMode = !domainVal || ipv4Regex.test(domainVal.trim());
+      
+      const payload = { ...values };
+      if (isIpMode) {
+        delete payload.backendUrl;
+      } else {
+        delete payload.port;
+      }
+
+      const rs = await axiosRequest.post("/v1/child-apps/connect", payload);
       notification.success({ message: rs.data.message || "Kết nối thành công" });
       connectForm.resetFields();
       setConnectOpen(false);
@@ -382,11 +393,11 @@ export default function ChildAppTable() {
           initialValues={{ port: 8080 }}
         >
           <Form.Item
-            label="Domain (IPv4 của VPS)"
+            label="Domain hoặc IPv4 của VPS"
             name="appDomain"
             rules={[{ required: true, message: "Vui lòng nhập domain/IP" }]}
           >
-            <Input placeholder="Ví dụ: 103.72.xxx.xxx" onBlur={handleDomainBlur} />
+            <Input placeholder="Ví dụ: 103.72.xxx.xxx hoặc domain.com" onBlur={handleDomainBlur} />
           </Form.Item>
           <Form.Item
             label="Tên ứng dụng"
@@ -396,12 +407,34 @@ export default function ChildAppTable() {
             <Input placeholder="Ví dụ: credit-be-vn" suffix={fetchingMeta ? <Spin size="small" /> : null} />
           </Form.Item>
           <Form.Item
-            label="Port"
-            name="port"
-            rules={[{ required: true, message: "Vui lòng nhập port" }]}
-            extra="Trường này đã được cấu hình sẵn, thông thường không cần thay đổi."
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.appDomain !== currentValues.appDomain}
           >
-            <InputNumber min={1} max={65535} className="w-full" />
+            {({ getFieldValue }) => {
+              const domainVal = getFieldValue("appDomain") || "";
+              const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+              const isIpMode = !domainVal || ipv4Regex.test(domainVal.trim());
+
+              return isIpMode ? (
+                <Form.Item
+                  label="Port"
+                  name="port"
+                  rules={[{ required: true, message: "Vui lòng nhập port" }]}
+                  extra="Trường này đã được cấu hình sẵn, thông thường không cần thay đổi."
+                >
+                  <InputNumber min={1} max={65535} className="w-full" />
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  label="Backend URL"
+                  name="backendUrl"
+                  rules={[{ required: true, message: "Vui lòng nhập backend url" }]}
+                  extra="Ví dụ: https://api.domain.com"
+                >
+                  <Input placeholder="Nhập backend url" />
+                </Form.Item>
+              );
+            }}
           </Form.Item>
           <div className="flex justify-end gap-2">
             <Button
