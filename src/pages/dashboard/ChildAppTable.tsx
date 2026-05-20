@@ -43,22 +43,27 @@ export default function ChildAppTable() {
   const [editTarget, setEditTarget] = React.useState<IChildApp | null>(null);
   const [editForm] = Form.useForm();
 
-  const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(
+    null,
+  );
   const [checkingAll, setCheckingAll] = React.useState(false);
-  const [appMeta, setAppMeta] = React.useState<Record<string, { iconUrl: string | null; title: string | null }>>({});
+  const [appMeta, setAppMeta] = React.useState<
+    Record<string, { iconUrl: string | null; title: string | null }>
+  >({});
   const [fetchingMeta, setFetchingMeta] = React.useState(false);
 
   const fetchAllMeta = async (apps: IChildApp[]) => {
     if (apps.length === 0) return;
     const results = await Promise.allSettled(
-      apps.map((app) => axiosRequest.get(`/v1/child-apps/${app._id}/meta`))
+      apps.map((app) => axiosRequest.get(`/v1/child-apps/${app._id}/meta`)),
     );
     setAppMeta((prev) => {
       const next = { ...prev };
       results.forEach((result, i) => {
-        next[apps[i]._id] = result.status === "fulfilled"
-          ? result.value.data.data
-          : { iconUrl: null, title: null };
+        next[apps[i]._id] =
+          result.status === "fulfilled"
+            ? result.value.data.data
+            : { iconUrl: null, title: null };
       });
       return next;
     });
@@ -68,7 +73,7 @@ export default function ChildAppTable() {
     if (apps.length === 0) return;
     setCheckingAll(true);
     const results = await Promise.allSettled(
-      apps.map((app) => axiosRequest.get(`/v1/child-apps/${app._id}/status`))
+      apps.map((app) => axiosRequest.get(`/v1/child-apps/${app._id}/status`)),
     );
     setList((prev) => {
       const updated = [...prev];
@@ -104,11 +109,12 @@ export default function ChildAppTable() {
     }
   };
 
-  const isFirstLoad = React.useRef(true);
+  const SESSION_KEY = "childApps_statusChecked";
 
   React.useEffect(() => {
-    fetchList(isFirstLoad.current);
-    isFirstLoad.current = false;
+    const shouldCheckStatus = !sessionStorage.getItem(SESSION_KEY);
+    if (shouldCheckStatus) sessionStorage.setItem(SESSION_KEY, "1");
+    fetchList(shouldCheckStatus);
   }, [page]);
 
   const handleDomainBlur = async () => {
@@ -120,7 +126,9 @@ export default function ChildAppTable() {
 
     try {
       setFetchingMeta(true);
-      const rs = await axiosRequest.get("/v1/child-apps/fetch-meta", { params: { domain } });
+      const rs = await axiosRequest.get("/v1/child-apps/fetch-meta", {
+        params: { domain },
+      });
       const { title } = rs.data.data;
       if (title && !connectForm.getFieldValue("appName")) {
         connectForm.setFieldsValue({ appName: title });
@@ -134,9 +142,10 @@ export default function ChildAppTable() {
     try {
       setConnectLoading(true);
       const domainVal = values.appDomain || "";
-      const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      const ipv4Regex =
+        /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
       const isIpMode = !domainVal || ipv4Regex.test(domainVal.trim());
-      
+
       const payload = { ...values };
       if (isIpMode) {
         delete payload.backendUrl;
@@ -145,7 +154,9 @@ export default function ChildAppTable() {
       }
 
       const rs = await axiosRequest.post("/v1/child-apps/connect", payload);
-      notification.success({ message: rs.data.message || "Kết nối thành công" });
+      notification.success({
+        message: rs.data.message || "Kết nối thành công",
+      });
       connectForm.resetFields();
       setConnectOpen(false);
       fetchList();
@@ -169,8 +180,13 @@ export default function ChildAppTable() {
     if (!editTarget) return;
     try {
       setEditLoading(true);
-      const rs = await axiosRequest.put(`/v1/child-apps/${editTarget._id}`, values);
-      notification.success({ message: rs.data.message || "Cập nhật thành công" });
+      const rs = await axiosRequest.put(
+        `/v1/child-apps/${editTarget._id}`,
+        values,
+      );
+      notification.success({
+        message: rs.data.message || "Cập nhật thành công",
+      });
       setEditOpen(false);
       fetchList();
     } catch (error: any) {
@@ -245,7 +261,9 @@ export default function ChildAppTable() {
             src={meta.iconUrl}
             alt="icon"
             className="w-7 h-7 object-contain mx-auto rounded"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
           />
         ) : null;
       },
@@ -278,7 +296,9 @@ export default function ChildAppTable() {
       align: "center",
       render: (status: string) =>
         checkingAll ? (
-          <Tag icon={<SyncOutlined spin />} color="processing">Đang kiểm tra</Tag>
+          <Tag icon={<SyncOutlined spin />} color="processing">
+            Đang kiểm tra
+          </Tag>
         ) : status === "online" ? (
           <Tag color="success">Online</Tag>
         ) : (
@@ -289,13 +309,18 @@ export default function ChildAppTable() {
       title: "Ngày thêm",
       dataIndex: "createdAt",
       key: "createdAt",
-      render: (text) => <span className="text-sm text-gray-500">{formatDate(text)}</span>,
+      render: (text) => (
+        <span className="text-sm text-gray-500">{formatDate(text)}</span>
+      ),
     },
     {
       title: "Thao tác",
       key: "actions",
       render: (_, record) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Tooltip title="Kiểm tra trạng thái">
             <Button
               icon={<SyncOutlined />}
@@ -390,29 +415,58 @@ export default function ChildAppTable() {
           form={connectForm}
           layout="vertical"
           onFinish={handleConnect}
-          initialValues={{ port: 8080 }}
+          initialValues={{ port: 8081 }}
         >
           <Form.Item
             label="Domain hoặc IPv4 của VPS"
             name="appDomain"
-            rules={[{ required: true, message: "Vui lòng nhập domain/IP" }]}
+            rules={[
+              { required: true, message: "Vui lòng nhập domain/IP" },
+              {
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve();
+                  const trimmed = value
+                    .trim()
+                    .replace(/^https?:\/\//i, "")
+                    .split("/")[0];
+                  const ipv4 =
+                    /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+                  const domain =
+                    /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+                  if (ipv4.test(trimmed) || domain.test(trimmed))
+                    return Promise.resolve();
+                  return Promise.reject(
+                    "Vui lòng nhập đúng định dạng domain hoặc địa chỉ IPv4",
+                  );
+                },
+              },
+            ]}
           >
-            <Input placeholder="Ví dụ: 103.72.xxx.xxx hoặc domain.com" onBlur={handleDomainBlur} />
+            <Input
+              placeholder="Ví dụ: 103.72.xxx.xxx hoặc domain.com"
+              onBlur={handleDomainBlur}
+            />
           </Form.Item>
           <Form.Item
             label="Tên ứng dụng"
             name="appName"
             rules={[{ required: true, message: "Vui lòng nhập tên app" }]}
           >
-            <Input placeholder="Ví dụ: credit-be-vn" suffix={fetchingMeta ? <Spin size="small" /> : null} />
+            <Input
+              placeholder="Ví dụ: credit-be-vn"
+              suffix={fetchingMeta ? <Spin size="small" /> : null}
+            />
           </Form.Item>
           <Form.Item
             noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.appDomain !== currentValues.appDomain}
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.appDomain !== currentValues.appDomain
+            }
           >
             {({ getFieldValue }) => {
               const domainVal = getFieldValue("appDomain") || "";
-              const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+              const ipv4Regex =
+                /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
               const isIpMode = !domainVal || ipv4Regex.test(domainVal.trim());
 
               return isIpMode ? (
@@ -428,7 +482,9 @@ export default function ChildAppTable() {
                 <Form.Item
                   label="Backend URL"
                   name="backendUrl"
-                  rules={[{ required: true, message: "Vui lòng nhập backend url" }]}
+                  rules={[
+                    { required: true, message: "Vui lòng nhập backend url" },
+                  ]}
                   extra="Ví dụ: https://api.domain.com"
                 >
                   <Input placeholder="Nhập backend url" />
